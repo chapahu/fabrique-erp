@@ -1,4 +1,5 @@
 import express from "express";
+import { authRouter, requireAuth } from "./auth";
 import { pool } from "./db";
 import { errorHandler } from "./errors";
 import { commerceRouter } from "./routes/commerce";
@@ -16,6 +17,12 @@ app.get("/api/health", async (_req, res) => {
   await pool.query("SELECT 1");
   res.json({ status: "ok" });
 });
+
+// Connexion / déconnexion : accessibles sans badge (évidemment)
+app.use("/api", authRouter);
+
+// À partir d'ici, TOUTES les routes exigent d'être connecté
+app.use("/api", requireAuth);
 
 app.use("/api", referentielRouter);
 app.use("/api", stockRouter);

@@ -2,6 +2,7 @@
 import { Router } from "express";
 import { receptionInput } from "@fabrique/shared";
 import { z } from "zod";
+import { requirePermission } from "../auth";
 import { pool, withTransaction } from "../db";
 import { HttpError } from "../errors";
 
@@ -71,7 +72,7 @@ stockRouter.get("/stock/lots", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Le schéma Zod (partagé avec l'interface, voir packages/shared) décrit la forme exacte attendue.
 // Tout le reste est refusé (400). Si expiresOn est absent, la DLC est calculée via la durée de vie.
-stockRouter.post("/receptions", async (req, res) => {
+stockRouter.post("/receptions", requirePermission("reception"), async (req, res) => {
   const body = receptionInput.parse(req.body);
 
   const result = await withTransaction(async (db) => {
@@ -89,10 +90,10 @@ stockRouter.post("/receptions", async (req, res) => {
     );
 
     const movement = await db.query(
-      `INSERT INTO stock_movements (lot_id, location_id, quantity, type, note)
-       VALUES ($1, $2, $3, 'reception', 'Réception fournisseur')
+      `INSERT INTO stock_movements (lot_id, location_id, quantity, type, note, user_id)
+       VALUES ($1, $2, $3, 'reception', 'Réception fournisseur', $4)
        RETURNING id, created_at`,
-      [lot.rows[0].id, body.locationId, body.quantity],
+      [lot.rows[0].id, body.locationId, body.quantity, req.user!.id],
     );
 
     return { lot: lot.rows[0], movement: movement.rows[0] };
@@ -167,9 +168,11 @@ stockRouter.get("/lots/:id/trace", async (req, res) => {
       [id],
     ),
     pool.query(
-      `SELECT m.created_at, m.type, m.quantity, loc.name AS location, po.number AS production_order, m.note
+      `SELECT m.created_at, m.type, m.quantity, loc.name AS location, po.number AS production_order, m.note,
+              u.name AS user_name
        FROM stock_movements m
        JOIN locations loc ON loc.id = m.location_id
+       LEFT JOIN users u ON u.id = m.user_id
        LEFT JOIN production_orders po ON po.id = m.production_order_id
        WHERE m.lot_id = $1
        ORDER BY m.created_at, m.id`,

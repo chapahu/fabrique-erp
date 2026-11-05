@@ -98,7 +98,7 @@ export function TracePage() {
             )}
 
             <Card title="🕑 Historique des mouvements">
-              <Table head={["Date", "Mouvement", "Quantité", "Emplacement", "OF"]}>
+              <Table head={["Date", "Mouvement", "Quantité", "Emplacement", "OF", "Par"]}>
                 {trace.data.history.map((h, i) => (
                   <tr key={i}>
                     <td className={td}>{fmtDateTime(h.created_at)}</td>
@@ -108,6 +108,7 @@ export function TracePage() {
                     </td>
                     <td className={td}>{h.location}</td>
                     <td className={`${td} font-mono text-xs`}>{h.production_order ?? "—"}</td>
+                    <td className={`${td} text-xs text-stone-500`}>{h.user_name ?? "—"}</td>
                   </tr>
                 ))}
               </Table>

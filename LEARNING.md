@@ -259,3 +259,73 @@ npm run simulate    ← le faux employé (Ctrl+C pour l'arrêter)
 J'avais appelé un type `Location`. Or ce nom existe déjà dans les outils du navigateur que TypeScript charge par défaut.
 Comme le simulateur ne tourne pas dans un navigateur, on a retiré ces outils de sa configuration (`"lib": ["ES2023"]`).
 Leçon : TypeScript sert justement à attraper ce genre de confusion **avant** de lancer le programme.
+
+---
+
+## Connexion et rôles : qui es-tu, et as-tu le droit ?
+
+### L'image : des badges d'accès
+1. **Se connecter** = donner son e-mail et son mot de passe à l'accueil.
+2. Le serveur remet un **badge temporaire** (valable 8 h). Le navigateur le garde dans un **cookie**
+   (un petit fichier que le navigateur renvoie automatiquement au serveur à chaque demande).
+3. À chaque demande, le serveur regarde le badge : **qui est-ce ?** (authentification)
+   puis **son métier lui permet-il cette action ?** (autorisation).
+
+Deux réponses de refus différentes :
+- **401** = « je ne sais pas qui tu es » (pas de badge, ou badge expiré) → page de connexion ;
+- **403** = « je sais qui tu es, mais tu n'as pas le droit » (une vendeuse qui veut fabriquer).
+
+### Les rôles
+| Rôle | Réceptionner | Fabriquer | Envoyer en boutique | Vendre |
+|---|---|---|---|---|
+| Direction | ✅ | ✅ | ✅ | ✅ |
+| Atelier | ✅ | ✅ | ✅ | ❌ |
+| Achats | ✅ | ❌ | ❌ | ❌ |
+| Boutique | ❌ | ❌ | ❌ | ✅ **dans sa boutique seulement** |
+Tout le monde peut **consulter**. Ce tableau est écrit **une seule fois** dans [packages/shared](packages/shared/src/index.ts).
+
+### Cacher le bouton ≠ interdire l'action
+- L'interface **cache** les boutons interdits : c'est du **confort**, pour ne pas proposer quelque chose d'impossible.
+- Le serveur **refuse** les actions interdites : c'est la **sécurité**. Quelqu'un de malin peut toujours
+  envoyer une demande sans passer par les boutons. Si seul le bouton était caché, il pourrait quand même agir.
+On a testé chaque rôle directement contre le serveur, sans l'interface : tous les refus fonctionnent.
+
+### Les mots de passe ne sont jamais stockés
+On garde seulement une **empreinte** (hash), calculée avec un algorithme volontairement lent (`scrypt`).
+Avec l'empreinte, on peut vérifier un mot de passe, mais pas le retrouver. Si la base était volée,
+les mots de passe resteraient secrets. Même chose pour les badges : la base ne garde que leur empreinte.
+Petit détail de sécurité : on répond « e-mail ou mot de passe incorrect » sans dire lequel des deux,
+pour ne pas aider quelqu'un qui chercherait quels e-mails existent.
+
+### Qui a fait quoi (piste d'audit)
+Chaque mouvement de stock garde maintenant son **auteur**. On le voit dans le fil d'activité
+(« par Léa ») et dans l'historique de traçabilité. Indispensable dans une entreprise :
+en cas d'erreur, on sait à qui demander.
+
+### Les migrations, en vrai
+Pour ajouter les utilisateurs, il fallait **ajouter des tables à une base qui contient déjà des données**.
+On ne recrée pas tout : on écrit un nouveau fichier, [002_users.sql](db/migrations/002_users.sql),
+et l'**outil de migrations** (`npm run db:migrate`) :
+- regarde dans la table `schema_migrations` lesquelles sont déjà faites ;
+- applique uniquement les nouvelles, dans l'ordre, chacune en « tout ou rien » ;
+- ne fait rien si on le relance (testé : « Base déjà à jour »).
+C'est exactement ainsi qu'on fera évoluer la base en ligne, sans perdre les données de la biscuiterie.
+
+### Les comptes de démo
+`npm run db:seed` crée un compte par rôle (direction, atelier, achats, marais, lyon, simulateur).
+Leur mot de passe est la valeur `DEMO_PASSWORD` du fichier `.env`. Le simulateur se connecte avec son propre compte.
+
+### Le mode démo : choisir son rôle en un clic
+Pour tester, taper un e-mail et un mot de passe à chaque fois est pénible. Avec `DEMO_MODE=true` dans `.env`,
+la page de connexion affiche **une carte par rôle**. On clique, et on est connecté. « ↩ Changer de rôle » ramène aux cartes.
+- C'est un **interrupteur** : éteint (`false`), les cartes disparaissent et le serveur répond 404 à cette porte.
+  La vraie connexion par mot de passe reste disponible (repliée sous les cartes).
+- On n'allume ce mode **qu'avec des données fictives**. Dans une vraie entreprise, il serait éteint.
+- Le serveur ne lit `.env` **qu'au démarrage** : après l'avoir modifié, il faut le relancer.
+
+### Bug rencontré : l'écran ne changeait pas après la connexion
+Le serveur répondait « connecté » (200 OK), mais l'écran restait sur la page de connexion.
+Cause : après la connexion, on vidait **toute** la mémoire des données (`clear()`), y compris la fiche « qui suis-je ? »
+à laquelle l'écran était abonné. L'écran restait branché sur l'ancienne fiche, qui disait « pas connecté ».
+Correction : on vide tout **sauf** cette fiche, et on la met à jour. Leçon : on a trouvé le problème en regardant
+les **requêtes réseau** (le serveur disait OK) : le souci était donc côté interface, pas côté serveur.

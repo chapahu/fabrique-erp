@@ -9,6 +9,9 @@
   "scripts": {
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "db:migrate": "npm run migrate --workspace apps/api",
+    "db:seed": "npm run seed --workspace apps/api",
+    "setup": "npm run db:up && npm run db:migrate && npm run db:seed",
     "dev:api": "npm run dev --workspace apps/api",
     "dev:web": "npm run dev --workspace apps/web",
     "simulate": "npm run start --workspace apps/simulator",

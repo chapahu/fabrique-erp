@@ -10,10 +10,7 @@ services:
     volumes:
       # Volume nommé : les données survivent à l'arrêt/suppression du conteneur
       - pgdata:/var/lib/postgresql/data
-      # Au tout premier démarrage (volume vide), Postgres exécute les .sql de ce dossier dans l'ordre
-      - ./db/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
-      - ./db/seed.sql:/docker-entrypoint-initdb.d/999_seed.sql:ro
-      # (Provisoire : dès que Node est installé, un vrai outil de migration prendra le relais)
+      # Le schéma n'est plus créé ici : c'est l'outil de migrations qui s'en charge (npm run db:migrate)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

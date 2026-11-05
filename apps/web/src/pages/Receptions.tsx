@@ -1,6 +1,6 @@
 import { receptionInput } from "@fabrique/shared";
 import { useState } from "react";
-import { useCreateReception, useItems, useLocations, useSuppliers } from "../api";
+import { useCan, useCreateReception, useItems, useLocations, useSuppliers } from "../api";
 import { Button, Card, ErrorBox, Field, fieldErrors, inputClass, PageTitle } from "../ui";
 
 const empty = { itemId: "", supplierId: "", locationId: "", lotNumber: "", quantity: "", expiresOn: "" };
@@ -10,6 +10,7 @@ export function ReceptionsPage() {
   const suppliers = useSuppliers();
   const locations = useLocations();
   const create = useCreateReception();
+  const allowed = useCan("reception");
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -32,6 +33,17 @@ export function ReceptionsPage() {
   }
 
   const unit = items.data?.find((i) => i.id === Number(form.itemId))?.unit;
+
+  // Quelqu'un qui tape l'adresse /receptions sans en avoir le droit voit ce message
+  // (et l'API refuserait de toute façon).
+  if (!allowed) {
+    return (
+      <>
+        <PageTitle title="Réceptions" />
+        <Card>🔒 Ton rôle ne permet pas d'enregistrer des livraisons.</Card>
+      </>
+    );
+  }
 
   return (
     <>

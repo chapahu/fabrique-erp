@@ -8,6 +8,7 @@ import {
   useProductionOrders,
   useRecipes,
   useStartProductionOrder,
+  useCan,
 } from "../api";
 import {
   Button,
@@ -90,6 +91,7 @@ function OrderDetail({ id }: { id: number }) {
   const order = useProductionOrder(id);
   const start = useStartProductionOrder();
   const complete = useCompleteProductionOrder();
+  const allowed = useCan("production");
   const [produced, setProduced] = useState("");
 
   if (order.isPending) return <Card><Loading /></Card>;
@@ -124,7 +126,10 @@ function OrderDetail({ id }: { id: number }) {
         })}
       </Table>
 
-      {open && (
+      {open && !allowed && (
+        <p className="mt-4 text-xs text-stone-500">🔒 Seuls l'atelier et la direction peuvent faire avancer un OF.</p>
+      )}
+      {open && allowed && (
         <div className="mt-5 space-y-3 border-t border-stone-100 pt-4">
           <div className="flex flex-wrap items-end gap-3">
             {o.status === "planifie" && (
@@ -160,6 +165,7 @@ function OrderDetail({ id }: { id: number }) {
 
 export function ProductionPage() {
   const orders = useProductionOrders();
+  const allowed = useCan("production");
   const [selected, setSelected] = useState<number | null>(null);
 
   return (
@@ -190,7 +196,7 @@ export function ProductionPage() {
           </Card>
           {selected !== null && <OrderDetail key={selected} id={selected} />}
         </div>
-        <CreateOrderForm />
+        {allowed && <CreateOrderForm />}
       </div>
     </>
   );

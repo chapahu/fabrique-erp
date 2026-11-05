@@ -1,9 +1,17 @@
 // Tout ce qui parle à l'API est ici : les types des réponses et les "hooks" TanStack Query.
 // Les pages n'appellent jamais fetch directement : un seul endroit à modifier si l'API change.
-import type { ProductionOrderInput, ProductionStatus, ReceptionInput } from "@fabrique/shared";
+import {
+  can,
+  type Permission,
+  type ProductionOrderInput,
+  type ProductionStatus,
+  type ReceptionInput,
+  type Role,
+} from "@fabrique/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // ---------- Types des données renvoyées par l'API ----------
+export type Me = { id: number; email: string; name: string; role: Role; location_id: number | null };
 export type Location = { id: number; code: string; name: string; type: "production" | "boutique" | "entrepot" };
 export type Supplier = { id: number; name: string };
 export type Item = {
@@ -70,7 +78,14 @@ export type LotTrace = {
   };
   upstream: { lot_id: number; lot_number: string; item: string; quantity_used: number; unit: string }[];
   downstream: { production_order: string; lot_id: number; lot_number: string; item: string; quantity_used: number }[];
-  history: { created_at: string; type: string; quantity: number; location: string; production_order: string | null }[];
+  history: {
+    created_at: string;
+    type: string;
+    quantity: number;
+    location: string;
+    production_order: string | null;
+    user_name: string | null;
+  }[];
 };
 
 export type Activity = {
@@ -83,6 +98,7 @@ export type Activity = {
   location: string;
   lot_number: string;
   production_order: string | null;
+  user_name: string | null;
 };
 
 // ---------- Appel HTTP générique ----------
@@ -101,6 +117,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
+  if (res.status === 204) return undefined as T; // réponse vide (ex. déconnexion)
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error ?? `Erreur ${res.status}`, data?.details);
   return data as T;
@@ -108,6 +125,63 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 const post = <T>(path: string, body?: unknown) =>
   api<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) });
+
+// ---------- Connexion ----------
+// "Qui suis-je ?" : si l'API répond 401, on n'est pas connecté -> la page de connexion s'affiche
+export const useMe = () =>
+  useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/auth/me"), refetchInterval: false, retry: false });
+
+/**
+ * Après une connexion / déconnexion, on oublie toutes les données (elles dépendent de qui est connecté)
+ * SAUF la fiche "qui suis-je ?" : l'écran y est abonné, on la met à jour au lieu de la supprimer.
+ * (Bug corrigé : en la supprimant, l'écran restait branché sur l'ancienne fiche "pas connecté".)
+ */
+function resetDataFor(qc: ReturnType<typeof useQueryClient>, me: Me | null) {
+  qc.removeQueries({ predicate: (q) => q.queryKey[0] !== "me" });
+  if (me) qc.setQueryData(["me"], me);
+  else qc.invalidateQueries({ queryKey: ["me"] });
+}
+
+/** Le rôle de l'utilisateur connecté autorise-t-il cette action ? (sert à cacher les boutons) */
+export function useCan(permission: Permission) {
+  const me = useMe();
+  return can(me.data?.role, permission);
+}
+
+export type DemoAccount = { id: number; name: string; role: Role; location: string | null };
+
+// Mode démo : la liste des comptes (404 si le mode démo est éteint côté serveur)
+export const useDemoAccounts = () =>
+  useQuery({
+    queryKey: ["demo-accounts"],
+    queryFn: () => api<DemoAccount[]>("/auth/demo-accounts"),
+    refetchInterval: false,
+    retry: false,
+  });
+
+export function useDemoLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: number) => post<Me>("/auth/demo-login", { userId }),
+    onSuccess: (me) => resetDataFor(qc, me),
+  });
+}
+
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { email: string; password: string }) => post<Me>("/auth/login", input),
+    onSuccess: (me) => resetDataFor(qc, me),
+  });
+}
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => post("/auth/logout"),
+    onSuccess: () => resetDataFor(qc, null),
+  });
+}
 
 // ---------- Lectures (useQuery) ----------
 // queryKey = l'identifiant de la donnée en cache. Même clé = même donnée partagée entre les pages.

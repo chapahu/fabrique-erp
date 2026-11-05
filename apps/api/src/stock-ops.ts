@@ -8,7 +8,7 @@ type MovementType = "vente" | "transfert" | "perte";
 
 export async function takeFromStock(
   db: pg.PoolClient,
-  params: { itemId: number; locationId: number; quantity: number; type: MovementType; note?: string },
+  params: { itemId: number; locationId: number; quantity: number; type: MovementType; userId: number; note?: string },
 ) {
   // Verrou sur l'emplacement : deux ventes simultanées ne peuvent pas prendre le même dernier cookie
   await db.query("SELECT pg_advisory_xact_lock($1)", [params.locationId]);
@@ -30,9 +30,9 @@ export async function takeFromStock(
     if (remaining <= 0) break;
     const take = Math.min(remaining, lot.quantity);
     await db.query(
-      `INSERT INTO stock_movements (lot_id, location_id, quantity, type, note)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [lot.lot_id, params.locationId, -take, params.type, params.note ?? null],
+      `INSERT INTO stock_movements (lot_id, location_id, quantity, type, note, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [lot.lot_id, params.locationId, -take, params.type, params.note ?? null, params.userId],
     );
     taken.push({ lotId: lot.lot_id, lotNumber: lot.lot_number, quantity: take });
     remaining = Math.round((remaining - take) * 1000) / 1000;

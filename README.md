@@ -15,7 +15,8 @@ et la stack d'un vrai ERP métier.
 | API REST (stock, réceptions, OF avec consommation FEFO, traçabilité) | ✅ |
 | Interface web (tableau de bord, stock, production, réceptions, traçabilité) | ✅ |
 | Simulateur d'activité : livraisons, production, transferts, ventes boutiques | ✅ |
-| Authentification et rôles | ⏳ |
+| Connexion, rôles (direction, atelier, achats, boutique) et auteur de chaque mouvement | ✅ |
+| Migrations versionnées (`npm run db:migrate`) | ✅ |
 | Achats, réceptions, facturation, portail B2B | 🔜 |
 | Copilote IA | 🔜 |
 
@@ -29,14 +30,14 @@ PostgreSQL · Docker · Git / GitHub
 Prérequis : [Node.js LTS](https://nodejs.org) et [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
-cp .env.example .env       # puis adapter le mot de passe
-docker compose up -d       # démarre PostgreSQL (schéma + données de démo au 1er lancement)
+cp .env.example .env       # puis adapter le mot de passe de la base
+npm install
+npm run setup              # démarre PostgreSQL, applique les migrations, crée les données et comptes de démo
 ```
 
 Lancer l'API (http://localhost:3000/api) :
 
 ```bash
-npm install
 npm run dev:api
 ```
 
@@ -47,6 +48,10 @@ Lancer l'interface (http://localhost:5173), dans un second terminal :
 ```bash
 npm run dev:web
 ```
+
+Se connecter : avec `DEMO_MODE=true` (dans `.env`), il suffit de **cliquer sur un rôle**
+(Direction, Atelier, Achats, Boutique Marais, Boutique Lyon). Sinon, connexion classique avec un compte de démo
+(`direction@`, `atelier@`, `achats@`, `marais@`, `lyon@fabrique.test`) et le mot de passe `DEMO_PASSWORD` du `.env`.
 
 Faire vivre l'ERP (dans un troisième terminal) :
 

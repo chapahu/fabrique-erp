@@ -4,8 +4,21 @@
 
 @api = http://localhost:3000/api
 
-### Santé de l'API et de la base
+### Santé de l'API et de la base (sans connexion)
 GET {{api}}/health
+
+### 1. Se connecter d'abord (REST Client garde ensuite le cookie de session)
+### Mot de passe : valeur DEMO_PASSWORD du fichier .env
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "direction@fabrique.test",
+  "password": "REMPLACER-PAR-DEMO_PASSWORD"
+}
+
+### Qui suis-je ?
+GET {{api}}/auth/me
 
 ### Emplacements, articles, recettes
 GET {{api}}/locations

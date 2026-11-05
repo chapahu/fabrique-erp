@@ -50,5 +50,35 @@ export const saleInput = z.object({
 });
 export type SaleInput = z.infer<typeof saleInput>;
 
+// ---------------------------------------------------------------------
+// Rôles et permissions : QUI a le droit de faire QUOI.
+// Partagé : l'API s'en sert pour REFUSER (sécurité), l'interface pour CACHER les boutons (confort).
+// ---------------------------------------------------------------------
+export const roles = ["admin", "production", "achats", "boutique"] as const;
+export type Role = (typeof roles)[number];
+
+export const roleLabels: Record<Role, string> = {
+  admin: "Direction",
+  production: "Atelier",
+  achats: "Achats",
+  boutique: "Boutique",
+};
+
+export const permissions = {
+  reception: ["admin", "achats", "production"],
+  production: ["admin", "production"],
+  transfer: ["admin", "production"],
+  sale: ["admin", "boutique"],
+} as const satisfies Record<string, readonly Role[]>;
+export type Permission = keyof typeof permissions;
+
+export const can = (role: Role | undefined, permission: Permission) =>
+  role !== undefined && (permissions[permission] as readonly Role[]).includes(role);
+
+export const loginInput = z.object({
+  email: z.email("E-mail invalide"),
+  password: z.string("Mot de passe requis").min(1, "Mot de passe requis"),
+});
+
 export const productionStatuses = ["planifie", "en_cours", "termine", "annule"] as const;
 export type ProductionStatus = (typeof productionStatuses)[number];

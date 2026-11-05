@@ -2,6 +2,7 @@
 import { completeProductionInput, productionOrderInput, productionStatuses } from "@fabrique/shared";
 import { Router } from "express";
 import { z } from "zod";
+import { requirePermission } from "../auth";
 import { pool, withTransaction } from "../db";
 import { HttpError } from "../errors";
 
@@ -57,7 +58,7 @@ productionRouter.get("/production-orders/:id", async (req, res) => {
 });
 
 // POST /api/production-orders : planifier un OF
-productionRouter.post("/production-orders", async (req, res) => {
+productionRouter.post("/production-orders", requirePermission("production"), async (req, res) => {
   const body = productionOrderInput.parse(req.body);
   const loc = await pool.query("SELECT type FROM locations WHERE id = $1", [body.locationId]);
   if (loc.rowCount === 0) throw new HttpError(404, "Emplacement introuvable");
@@ -79,7 +80,7 @@ productionRouter.post("/production-orders", async (req, res) => {
 });
 
 // POST /api/production-orders/:id/start : l'atelier démarre la production
-productionRouter.post("/production-orders/:id/start", async (req, res) => {
+productionRouter.post("/production-orders/:id/start", requirePermission("production"), async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const { rows, rowCount } = await pool.query(
     `UPDATE production_orders SET status = 'en_cours', started_at = now()
@@ -102,9 +103,10 @@ productionRouter.post("/production-orders/:id/start", async (req, res) => {
 // Chaque consommation est liée à l'OF : c'est ce qui rend la traçabilité possible.
 // ---------------------------------------------------------------------------
 // producedQuantity = quantité réellement produite (casse possible). Par défaut : la quantité planifiée.
-productionRouter.post("/production-orders/:id/complete", async (req, res) => {
+productionRouter.post("/production-orders/:id/complete", requirePermission("production"), async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
   const body = completeProductionInput.parse(req.body ?? {});
+  const userId = req.user!.id;
 
   const result = await withTransaction(async (db) => {
     // FOR UPDATE verrouille la ligne : deux personnes ne peuvent pas clôturer le même OF en même temps
@@ -156,9 +158,9 @@ productionRouter.post("/production-orders/:id/complete", async (req, res) => {
         if (remaining <= 0) break;
         const take = Math.min(remaining, lot.quantity);
         await db.query(
-          `INSERT INTO stock_movements (lot_id, location_id, quantity, type, production_order_id)
-           VALUES ($1, $2, $3, 'consommation', $4)`,
-          [lot.lot_id, of.location_id, -take, of.id],
+          `INSERT INTO stock_movements (lot_id, location_id, quantity, type, production_order_id, user_id)
+           VALUES ($1, $2, $3, 'consommation', $4, $5)`,
+          [lot.lot_id, of.location_id, -take, of.id, userId],
         );
         consumptions.push({ lot: lot.lot_number, item: line.name, quantity: take, unit: line.unit });
         remaining = Math.round((remaining - take) * 1000) / 1000; // évite les erreurs d'arrondi
@@ -178,9 +180,9 @@ productionRouter.post("/production-orders/:id/complete", async (req, res) => {
       [of.product_item_id, of.number, of.id, of.shelf_life_days],
     );
     await db.query(
-      `INSERT INTO stock_movements (lot_id, location_id, quantity, type, production_order_id)
-       VALUES ($1, $2, $3, 'production', $4)`,
-      [lot.rows[0].id, of.location_id, produced, of.id],
+      `INSERT INTO stock_movements (lot_id, location_id, quantity, type, production_order_id, user_id)
+       VALUES ($1, $2, $3, 'production', $4, $5)`,
+      [lot.rows[0].id, of.location_id, produced, of.id, userId],
     );
     await db.query(
       `UPDATE production_orders

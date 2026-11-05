@@ -28,6 +28,7 @@ function ActivityFeed() {
               </p>
               <p className="truncate text-xs text-stone-500">
                 {a.location} · lot {a.lot_number}
+                {a.user_name && <> · par {a.user_name}</>}
               </p>
             </div>
             <span className={`font-medium ${a.quantity < 0 ? "text-red-700" : "text-emerald-700"}`}>

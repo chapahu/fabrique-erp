@@ -21,15 +21,41 @@ const today = () => new Date().toISOString().slice(0, 10);
 const time = () => new Date().toLocaleTimeString("fr-FR");
 const log = (icon: string, message: string) => console.log(`${time()}  ${icon}  ${message}`);
 
+// ---------- Connexion : le simulateur a son propre compte, comme un employé ----------
+let sessionCookie = "";
+
+async function login() {
+  const res = await fetch(`${API}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: process.env.SIM_EMAIL, password: process.env.DEMO_PASSWORD }),
+  });
+  if (!res.ok) throw new Error(`connexion refusée (${res.status}) : lance "npm run db:seed" et vérifie .env`);
+  // Le serveur renvoie le badge dans l'en-tête Set-Cookie : on le garde pour les requêtes suivantes
+  sessionCookie = (res.headers.get("set-cookie") ?? "").split(";")[0];
+  log("🔑", "Simulateur connecté");
+}
+
+/** Toute requête part avec le badge. Si le badge a expiré (401), on se reconnecte et on réessaie une fois. */
+async function request(path: string, init: RequestInit = {}): Promise<Response> {
+  const send = () => fetch(`${API}${path}`, { ...init, headers: { ...init.headers, Cookie: sessionCookie } });
+  let res = await send();
+  if (res.status === 401) {
+    await login();
+    res = await send();
+  }
+  return res;
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`);
+  const res = await request(path);
   if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`);
   return res.json() as Promise<T>;
 }
 
 /** Envoie une action à l'API. Renvoie null si l'API refuse (ex. stock insuffisant) : c'est normal, on réessaiera. */
 async function post<T>(path: string, body: unknown = {}): Promise<T | null> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await request(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -177,6 +203,7 @@ async function tick() {
 async function main() {
   console.log(`🍪 Simulateur démarré : une action toutes les ${INTERVAL_MS / 1000} s sur ${API}`);
   console.log("   (Ctrl+C pour arrêter)\n");
+  await login();
   await loadReferenceData();
   for (;;) {
     try {
