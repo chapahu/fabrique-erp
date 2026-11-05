@@ -7,15 +7,19 @@ import {
   Database,
   Factory,
   LayoutDashboard,
+  Lightbulb,
   LogOut,
   type LucideIcon,
   ScanSearch,
+  Sparkles,
   TrendingUp,
   Truck,
 } from "lucide-react";
 import { Navigate, NavLink, Route, Routes } from "react-router";
 import { ApiError, useLogout, useMe } from "./api";
+import { CopilotPage } from "./pages/Copilot";
 import { DataExplorerPage } from "./pages/DataExplorer";
+import { DecisionsPage } from "./pages/Decisions";
 import { DirectionPage } from "./pages/Direction";
 import { ForecastPage } from "./pages/Forecast";
 import { LoginPage } from "./pages/Login";
@@ -34,7 +38,9 @@ const sections: { title: string; items: NavItem[] }[] = [
   {
     title: "Pilotage",
     items: [
+      { to: "/copilote", label: "Copilote IA", icon: Sparkles },
       { to: "/", label: "Vue direction", icon: LayoutDashboard, permission: "pilotage" },
+      { to: "/decisions", label: "Décisions", icon: Lightbulb, permission: "planning" },
       { to: "/previsions", label: "Prévisions", icon: TrendingUp, permission: "planning" },
       { to: "/planification", label: "Planification", icon: CalendarClock, permission: "planning" },
     ],
@@ -122,7 +128,7 @@ export function App() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">{user.name}</p>
-              <p className="text-[11px] text-stone-400">{roleLabels[user.role]}</p>
+              {user.name !== roleLabels[user.role] && <p className="text-[11px] text-stone-400">{roleLabels[user.role]}</p>}
             </div>
             <button
               onClick={() => logout.mutate()}
@@ -148,6 +154,8 @@ export function App() {
             <Route path="/receptions" element={<ReceptionsPage />} />
             <Route path="/tracabilite" element={<TracePage />} />
             <Route path="/donnees" element={<DataExplorerPage />} />
+            <Route path="/copilote" element={<CopilotPage />} />
+            <Route path="/decisions" element={<DecisionsPage />} />
           </Routes>
         </div>
       </main>

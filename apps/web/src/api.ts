@@ -292,6 +292,39 @@ export const useDataPage = (key: string | undefined, query: string) =>
     refetchInterval: 15_000,
   });
 
+// Décisions (moteur de règles, sans IA)
+export type DecisionCategory = "achats" | "production" | "gaspillage" | "boutiques" | "commercial" | "strategie";
+export type Decision = {
+  id: string;
+  category: DecisionCategory;
+  priority: "urgent" | "important" | "info";
+  title: string;
+  detail: string;
+  facts: { label: string; value: string }[];
+  action?: { label: string; to: string };
+};
+export type Decisions = {
+  generatedAt: string;
+  summary: { urgent: number; important: number; info: number; purchaseBudget7d: number };
+  decisions: Decision[];
+  purchasePlan: {
+    itemId: number; item: string; unit: string; supplier: string; leadTime: number; stock: number;
+    dailyUsage: number; coverDays: number; orderBy: string; orderInDays: number; quantity: number; cost: number;
+  }[];
+};
+export const useDecisions = () =>
+  useQuery({ queryKey: ["decisions"], queryFn: () => api<Decisions>("/decisions"), refetchInterval: 60_000 });
+
+// Copilote IA
+export type ChatMessage = { role: "user" | "assistant"; content: string; tools?: string[] };
+export const useCopilotStatus = () =>
+  useQuery({ queryKey: ["copilot-status"], queryFn: () => api<{ enabled: boolean; model: string }>("/copilot/status"), refetchInterval: false });
+export const useAskCopilot = () =>
+  useMutation({
+    mutationFn: (messages: ChatMessage[]) =>
+      post<{ answer: string; tools: string[] }>("/copilot", { messages: messages.map(({ role, content }) => ({ role, content })) }),
+  });
+
 export const useActivity = () =>
   useQuery({ queryKey: ["activity"], queryFn: () => api<Activity[]>("/activity?limit=12"), refetchInterval: 2000 });
 

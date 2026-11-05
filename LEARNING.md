@@ -427,3 +427,87 @@ Le serveur a une **liste blanche** ([data.ts](apps/api/src/routes/data.ts)) de c
 « Poudre à lever 0 kg » au lieu de 0,4 kg : la fonction de formatage `to_char` arrondissait. Remplacée par
 `trim_scale`, qui retire seulement les zéros inutiles. Leçon : **toujours relire les valeurs affichées**, pas seulement
 vérifier que la page s'affiche.
+
+---
+
+## Le copilote IA : poser une question en français à l'ERP
+
+### Ce que c'est
+Une page **Pilotage › Copilote IA** où l'on tape une question (« Que dois-je produire cette semaine ? »,
+« Quelle boutique progresse le plus ? ») et où l'IA répond avec **les vrais chiffres** de l'ERP.
+Les questions d'exemple changent selon le métier de la personne connectée.
+
+### Comment ça marche : le « tool use » (l'utilisation d'outils)
+L'IA (Claude, modèle `claude-opus-5-5`) n'a **aucun accès direct** à la base. On lui donne une liste d'**outils** décrits en français :
+`catalogue`, `stock`, `indicateurs_ventes`, `prevision_ventes`, `plan_production`, `ordres_fabrication`,
+`tracer_lot`, `explorer_donnees`. Le déroulé :
+1. on envoie la question + la liste des outils ;
+2. Claude répond « j'ai besoin de l'outil *plan_production* avec *jours = 7* » ;
+3. notre serveur exécute l'outil et renvoie le résultat ;
+4. Claude peut enchaîner plusieurs outils (8 au maximum), puis rédige la réponse.
+Le SDK officiel d'Anthropic gère cette boucle (`toolRunner`) ; chaque outil est décrit avec un schéma **Zod**
+(la même bibliothèque que pour nos formulaires). Code : [copilot.ts](apps/api/src/routes/copilot.ts).
+
+### La sécurité : l'IA a exactement les droits de l'utilisateur
+Chaque outil appelle **notre propre API** en présentant **le badge (cookie) de la personne connectée**.
+Résultat : une vendeuse qui demande le chiffre d'affaires reçoit « ton rôle ne permet pas d'accéder à cette information ».
+L'IA ne peut **rien modifier** (outils en lecture seule) et n'écrit **jamais de SQL**.
+C'est le principe du **moindre privilège** appliqué à l'IA.
+
+### Pour éviter les réponses inventées
+Les instructions données à l'IA (le « prompt système ») lui imposent de s'appuyer **uniquement** sur les résultats des outils,
+de donner les unités et la période, et d'expliquer simplement quand un accès est refusé.
+Sous chaque réponse, l'écran affiche **les outils consultés** : on peut vérifier d'où viennent les chiffres.
+
+### La clé d'API
+L'IA tourne sur les serveurs d'Anthropic : il faut une **clé d'API** (un mot de passe pour programmes), à mettre dans `.env`
+(`ANTHROPIC_API_KEY=...`). Elle est secrète : jamais dans le code ni sur GitHub. Sans clé, la page explique comment l'activer.
+Coût indicatif : quelques centimes par question (on paie au nombre de mots lus et écrits par l'IA, les « tokens »).
+
+### Réglages choisis
+- `effort: "medium"` : profondeur de réflexion suffisante pour des questions de gestion, sans dépenser trop.
+- `fallbacks: "default"` : si le modèle refuse une question par excès de prudence, elle est reposée automatiquement à un modèle de secours.
+- La conversation entière est renvoyée à chaque question : l'API de Claude n'a pas de mémoire entre deux appels.
+
+### Bug rencontré
+La page restait blanche : l'effet React qui fait défiler la conversation **renvoyait** le résultat de `scrollIntoView`,
+une « promesse » dans les navigateurs récents. Or un effet React ne doit renvoyer qu'une fonction de nettoyage, ou rien.
+Correction : ajouter des accolades. Trouvé en lisant la **console** du navigateur.
+
+---
+
+## L'onglet Décisions : un moteur de règles (sans IA)
+
+### Ce que c'est
+Une page **Pilotage › Décisions** qui dit **quoi faire** : quoi acheter, combien, avant quand, chez qui ; quelles fournées lancer ;
+quels lots écouler avant qu'ils périment ; quelles boutiques réapprovisionner ; quels clients relancer ; quelle stratégie adopter.
+Chaque recommandation a une **priorité** (à faire aujourd'hui / cette semaine / à surveiller) et affiche **les chiffres utilisés**.
+
+### Pourquoi « sans IA » ?
+Ce sont des **règles métier** écrites en code, comme le raisonnement d'un bon gestionnaire. C'est ce qu'on appelle un **moteur de règles**.
+Avantages par rapport à une IA : gratuit, instantané, **toujours la même réponse pour les mêmes données**, et **explicable**
+(on peut montrer le calcul à un auditeur ou à un chef d'atelier). Code : [decisions.ts](apps/api/src/routes/decisions.ts).
+
+### Les 6 familles de règles
+- **Achats** : consommation prévue = ventes prévues (Holt-Winters) × quantités des recettes. Couverture = stock des ateliers ÷ consommation par jour.
+  Date limite de commande = aujourd'hui + couverture − **délai de livraison du fournisseur**. Quantité = de quoi tenir le délai + 14 jours + le stock de sécurité,
+  arrondie à un conditionnement réaliste. Un **calendrier des achats** résume tout.
+- **Production** : produits dont le stock + les fournées en cours couvrent moins de 7 jours → fournées à lancer ; plus de 45 jours → surstock ;
+  OF planifiés en retard ou en cours depuis plus de 24 h.
+- **Anti-gaspillage** : lots qui périment sous 5 jours (produits finis) ou 10 jours (matières), avec le bon conseil selon le lieu
+  (utiliser en priorité, envoyer en boutique, promotion, ou retirer de la vente si périmé).
+- **Boutiques** : stock en boutique ÷ ventes moyennes des 14 derniers jours. Moins de 2 jours → réapprovisionner, avec les quantités et l'atelier d'origine.
+- **Commercial** (direction) : clients B2B réguliers silencieux depuis plus de 14 jours → relancer ; clients en baisse ; produit à pousser.
+- **Stratégie** (direction) : boutiques comparées **à la même période l'an dernier** (pour neutraliser la saison) et au reste du réseau ;
+  **pic saisonnier** à anticiper grâce à la prévision mensuelle ; produit à la marge la plus faible.
+
+### Les droits
+Même logique que partout : les achats et l'atelier voient achats, production, anti-gaspillage et boutiques ;
+la direction voit en plus le commercial et la stratégie (chiffres financiers) ; les vendeurs n'ont pas accès à l'onglet.
+
+### Bug rencontré (encore les fuseaux horaires !)
+La date limite de commande s'affichait « hier ». `toISOString()` convertit en heure universelle : minuit à Paris = 23 h la veille.
+Correction : construire la date « AAAA-MM-JJ » en **heure locale**. Deuxième fois qu'on rencontre ce piège : c'est un classique des ERP.
+
+### Comptes de démo sans prénom
+Les comptes s'appellent maintenant simplement par leur rôle : Direction, Chef d'atelier, Achats, Boutique Marais, Boutique Lyon.

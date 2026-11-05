@@ -92,11 +92,11 @@ const customers: [string, string, string, number][] = [
 ];
 
 const demoUsers = [
-  { email: "direction@fabrique.test", name: "Alex (Direction)", role: "admin", location: null },
-  { email: "atelier@fabrique.test", name: "Sam (Chef d'atelier)", role: "production", location: null },
-  { email: "achats@fabrique.test", name: "Camille (Achats)", role: "achats", location: null },
-  { email: "marais@fabrique.test", name: "Léa (Boutique Marais)", role: "boutique", location: "BTQ-MARAIS" },
-  { email: "lyon@fabrique.test", name: "Hugo (Boutique Lyon)", role: "boutique", location: "BTQ-LYON" },
+  { email: "direction@fabrique.test", name: "Direction", role: "admin", location: null },
+  { email: "atelier@fabrique.test", name: "Chef d'atelier", role: "production", location: null },
+  { email: "achats@fabrique.test", name: "Achats", role: "achats", location: null },
+  { email: "marais@fabrique.test", name: "Boutique Marais", role: "boutique", location: "BTQ-MARAIS" },
+  { email: "lyon@fabrique.test", name: "Boutique Lyon", role: "boutique", location: "BTQ-LYON" },
   { email: "simulateur@fabrique.test", name: "Simulateur", role: "admin", location: null },
 ];
 

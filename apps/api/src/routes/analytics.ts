@@ -12,7 +12,7 @@ export const analyticsRouter = Router();
 // Petit cache mémoire : les calculs de prévision prennent un peu de temps,
 // inutile de les refaire à chaque affichage. On garde le résultat 10 minutes.
 const cache = new Map<string, { at: number; value: unknown }>();
-async function cached<T>(key: string, compute: () => Promise<T>, ttlMs = 10 * 60_000): Promise<T> {
+export async function cached<T>(key: string, compute: () => Promise<T>, ttlMs = 10 * 60_000): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return hit.value as T;
   const value = await compute();
@@ -147,7 +147,16 @@ analyticsRouter.get("/analytics/overview", requirePermission("pilotage"), async 
 type Granularity = "day" | "month";
 
 /** Ventes jour par jour (ou mois par mois), sans trous. Les jours fermés (fériés) sont "lissés". */
-async function salesSeries(granularity: Granularity, metric: "units" | "revenue", itemId?: number, locationId?: number) {
+/** Ventes prévues d'un produit (toutes boutiques et B2B) sur les `days` prochains jours, gardées 10 min en mémoire */
+export function forecastDemand(itemId: number, days: number) {
+  return cached(`demand:${itemId}:${days}`, async () => {
+    const series = await salesSeries("day", "units", itemId);
+    const forecast = series.length >= 14 ? holtWinters(series.map((s) => s.value), 7, days).forecast : [];
+    return Math.round(forecast.reduce((s, f) => s + f.value, 0));
+  });
+}
+
+export async function salesSeries(granularity: Granularity, metric: "units" | "revenue", itemId?: number, locationId?: number) {
   const value = metric === "units" ? "SUM(s.quantity)" : "SUM(s.quantity * s.unit_price)";
   const filters = `($1::int IS NULL OR s.item_id = $1) AND ($2::int IS NULL OR s.location_id = $2)`;
   if (granularity === "day") {
@@ -271,11 +280,7 @@ analyticsRouter.get("/planning/production", requirePermission("planning"), async
 
     const plan = [];
     for (const p of products) {
-      const demand = await cached(`demand:${p.id}:${days}`, async () => {
-        const series = await salesSeries("day", "units", p.id);
-        const forecast = series.length >= 14 ? holtWinters(series.map((s) => s.value), 7, days).forecast : [];
-        return Math.round(forecast.reduce((s, f) => s + f.value, 0));
-      });
+      const demand = await forecastDemand(p.id, days);
       const need = Math.max(0, demand + p.min_stock - p.stock - p.in_progress);
       const batches = Math.ceil(need / p.batch);
       plan.push({

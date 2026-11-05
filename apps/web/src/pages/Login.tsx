@@ -33,7 +33,6 @@ function RolePicker({ accounts }: { accounts: DemoAccount[] }) {
                 {a.location && <span className="font-normal text-stone-500"> · {a.location}</span>}
               </p>
               <p className="text-sm text-stone-500">{card.description}</p>
-              <p className="mt-2 text-xs text-stone-400">Connecté en tant que {a.name}</p>
             </button>
           );
         })}
