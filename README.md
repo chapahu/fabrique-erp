@@ -14,7 +14,7 @@ et la stack d'un vrai ERP métier.
 | Recettes (nomenclatures) et ordres de fabrication | ✅ schéma |
 | API REST (stock, réceptions, OF avec consommation FEFO, traçabilité) | ✅ |
 | Interface web (tableau de bord, stock, production, réceptions, traçabilité) | ✅ |
-| Simulateur d'activité (données vivantes) | ⏳ |
+| Simulateur d'activité : livraisons, production, transferts, ventes boutiques | ✅ |
 | Authentification et rôles | ⏳ |
 | Achats, réceptions, facturation, portail B2B | 🔜 |
 | Copilote IA | 🔜 |
@@ -48,6 +48,12 @@ Lancer l'interface (http://localhost:5173), dans un second terminal :
 npm run dev:web
 ```
 
+Faire vivre l'ERP (dans un troisième terminal) :
+
+```bash
+npm run simulate
+```
+
 Se connecter à la base pour explorer :
 
 ```bash
@@ -59,6 +65,7 @@ docker compose exec db psql -U erp -d fabrique_erp
 ```
 apps/api/        API REST : Node.js + Express + Zod + PostgreSQL
 apps/web/        Interface : React + Vite + TanStack Query + Tailwind
+apps/simulator/  Faux employé qui génère de l'activité via l'API
 packages/shared/ Schémas Zod partagés entre l'API et l'interface
 db/migrations/   Évolutions de la structure de la base, numérotées et immuables
 db/seed.sql      Données de démo (fictives)

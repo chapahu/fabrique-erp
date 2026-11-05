@@ -11,6 +11,7 @@
     "db:down": "docker compose down",
     "dev:api": "npm run dev --workspace apps/api",
     "dev:web": "npm run dev --workspace apps/web",
+    "simulate": "npm run start --workspace apps/simulator",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }

@@ -73,6 +73,18 @@ export type LotTrace = {
   history: { created_at: string; type: string; quantity: number; location: string; production_order: string | null }[];
 };
 
+export type Activity = {
+  id: number;
+  created_at: string;
+  type: "reception" | "consommation" | "production" | "vente" | "transfert" | "perte" | "ajustement";
+  quantity: number;
+  item: string;
+  unit: string;
+  location: string;
+  lot_number: string;
+  production_order: string | null;
+};
+
 // ---------- Appel HTTP générique ----------
 export class ApiError extends Error {
   constructor(
@@ -126,7 +138,10 @@ export const useProductionOrder = (id: number | null) =>
     enabled: id !== null, // ne rien charger tant qu'aucun OF n'est sélectionné
   });
 
-export const useLotSearch = (search: string) =>
+export const useActivity = () =>
+  useQuery({ queryKey: ["activity"], queryFn: () => api<Activity[]>("/activity?limit=12"), refetchInterval: 2000 });
+
+export const useLotSearch =(search: string) =>
   useQuery({
     queryKey: ["lots", search],
     queryFn: () => api<LotSearchRow[]>(`/lots?search=${encodeURIComponent(search)}`),

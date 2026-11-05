@@ -1,6 +1,7 @@
 import express from "express";
 import { pool } from "./db";
 import { errorHandler } from "./errors";
+import { commerceRouter } from "./routes/commerce";
 import { productionRouter } from "./routes/production";
 import { referentielRouter } from "./routes/referentiel";
 import { stockRouter } from "./routes/stock";
@@ -19,6 +20,7 @@ app.get("/api/health", async (_req, res) => {
 app.use("/api", referentielRouter);
 app.use("/api", stockRouter);
 app.use("/api", productionRouter);
+app.use("/api", commerceRouter);
 
 // Route inconnue -> 404 en JSON
 app.use((_req, res) => {

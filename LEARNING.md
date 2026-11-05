@@ -213,3 +213,49 @@ Une règle (ex. « quantité > 0 ») ne s'écrit qu'une fois, donc le front et l
 Formulaire vide → erreurs par champ · OF planifié → besoins affichés face au stock disponible ·
 clôture → stocks mis à jour à l'écran · traçabilité amont du lot de cookies jusqu'aux 6 lots de matières.
 Défaut repéré et corrigé : après clôture, une matière devenue « insuffisante » s'affichait en rouge alors que l'OF était déjà terminé.
+
+---
+
+## Le simulateur : faire vivre l'ERP tout seul
+
+### L'idée en une phrase
+Un **faux employé automatique** : un petit programme qui, toutes les 4 secondes, fait une action réaliste
+dans l'ERP. Pour une démo, l'ERP a l'air d'être utilisé par une vraie biscuiterie.
+
+### Ce qu'il fait
+| Icône | Action | Qui le ferait en vrai |
+|---|---|---|
+| 🚚 | Livrer une matière qui passe sous son seuil | Le responsable des achats |
+| 📝 ▶️ 🍪 | Planifier, démarrer, terminer une fournée | Le chef d'atelier |
+| 📦 | Envoyer des cookies de l'atelier vers une boutique | Le logisticien |
+| 🛍️ | Vendre 1 à 12 cookies en boutique | Un client |
+
+### Pourquoi il passe par le serveur (l'API)
+Il aurait pu écrire directement dans la réserve (la base de données), mais il passe **par le guichet**,
+exactement comme l'interface. Résultat : toutes les règles s'appliquent à lui aussi.
+Il ne peut pas vendre un cookie qui n'existe pas, ni fabriquer sans farine. Quand l'API refuse, il l'affiche (⛔)
+et réessaie plus tard. C'est aussi un **test permanent** de l'API : s'il y avait un bug, il le trouverait vite.
+
+### Les deux nouvelles demandes ajoutées au serveur
+- **Transfert** (`/api/transfers`) : des cookies quittent l'atelier et arrivent en boutique.
+  Le **numéro de lot voyage avec la marchandise** : on sait quel lot est dans quelle boutique.
+- **Vente** (`/api/sales`) : un client achète en boutique. Interdit ailleurs qu'en boutique.
+Les deux prennent d'abord les lots qui périment le plus tôt (FEFO). Ce code est écrit **une seule fois**
+([apps/api/src/stock-ops.ts](apps/api/src/stock-ops.ts)) et réutilisé : moins de code, moins de bugs.
+
+### Le fil d'activité
+Sur le tableau de bord, la carte « Activité en direct » montre les derniers mouvements (rafraîchie toutes les 2 s).
+C'est l'écran parfait pour une démo : on voit la biscuiterie travailler.
+
+### Comment le lancer
+Trois programmes tournent en même temps, chacun dans son propre terminal :
+```
+npm run dev:api     ← le serveur
+npm run dev:web     ← l'interface
+npm run simulate    ← le faux employé (Ctrl+C pour l'arrêter)
+```
+
+### Erreur rencontrée
+J'avais appelé un type `Location`. Or ce nom existe déjà dans les outils du navigateur que TypeScript charge par défaut.
+Comme le simulateur ne tourne pas dans un navigateur, on a retiré ces outils de sa configuration (`"lib": ["ES2023"]`).
+Leçon : TypeScript sert justement à attraper ce genre de confusion **avant** de lancer le programme.

@@ -1,6 +1,48 @@
 import { Link } from "react-router";
-import { useProductionOrders, useStock } from "../api";
+import { type Activity, useActivity, useProductionOrders, useStock } from "../api";
 import { Badge, Card, fmtDate, fmtQty, Loading, PageTitle, StatusBadge, Table, td } from "../ui";
+
+const activityStyle: Record<Activity["type"], { icon: string; label: string }> = {
+  reception: { icon: "🚚", label: "Livraison" },
+  consommation: { icon: "🥣", label: "Utilisé en production" },
+  production: { icon: "🍪", label: "Fabriqué" },
+  vente: { icon: "🛍️", label: "Vendu" },
+  transfert: { icon: "📦", label: "Transfert" },
+  perte: { icon: "🗑️", label: "Perte" },
+  ajustement: { icon: "✏️", label: "Ajustement" },
+};
+
+function ActivityFeed() {
+  const activity = useActivity();
+  if (activity.isPending) return <Loading />;
+  return (
+    <ul className="divide-y divide-stone-100">
+      {activity.data?.map((a) => {
+        const s = activityStyle[a.type];
+        return (
+          <li key={a.id} className="flex items-center gap-3 py-2 text-sm">
+            <span className="text-lg">{s.icon}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate">
+                <span className="font-medium">{s.label}</span> · {a.item}
+              </p>
+              <p className="truncate text-xs text-stone-500">
+                {a.location} · lot {a.lot_number}
+              </p>
+            </div>
+            <span className={`font-medium ${a.quantity < 0 ? "text-red-700" : "text-emerald-700"}`}>
+              {a.quantity > 0 ? "+" : ""}
+              {fmtQty(a.quantity, a.unit)}
+            </span>
+            <span className="w-12 text-right text-xs text-stone-400">
+              {new Date(a.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function Kpi({ label, value, hint, tone = "stone" }: { label: string; value: string | number; hint?: string; tone?: "stone" | "red" | "amber" }) {
   const color = { stone: "text-stone-900", red: "text-red-700", amber: "text-amber-700" }[tone];
@@ -37,6 +79,10 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
+        <Card title="⚡ Activité en direct" className="xl:row-span-2">
+          <ActivityFeed />
+        </Card>
+
         <Card title="⚠️ À réapprovisionner">
           {alerts.length === 0 ? (
             <p className="text-sm text-stone-500">Aucune alerte : tous les stocks sont au-dessus du seuil.</p>

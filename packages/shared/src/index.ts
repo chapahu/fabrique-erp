@@ -28,5 +28,27 @@ export const completeProductionInput = z.object({
   producedQuantity: z.number().positive("La quantité produite doit être supérieure à 0").optional(),
 });
 
+// Transfert de stock entre deux emplacements (ex. atelier -> boutique)
+export const transferInput = z
+  .object({
+    itemId: id("Article"),
+    fromLocationId: id("Emplacement de départ"),
+    toLocationId: id("Emplacement d'arrivée"),
+    quantity: z.number("Quantité requise").positive("La quantité doit être supérieure à 0"),
+  })
+  .refine((t) => t.fromLocationId !== t.toLocationId, {
+    message: "Le départ et l'arrivée doivent être différents",
+    path: ["toLocationId"],
+  });
+export type TransferInput = z.infer<typeof transferInput>;
+
+// Vente en boutique
+export const saleInput = z.object({
+  itemId: id("Article"),
+  locationId: id("Boutique"),
+  quantity: z.number("Quantité requise").positive("La quantité doit être supérieure à 0"),
+});
+export type SaleInput = z.infer<typeof saleInput>;
+
 export const productionStatuses = ["planifie", "en_cours", "termine", "annule"] as const;
 export type ProductionStatus = (typeof productionStatuses)[number];
