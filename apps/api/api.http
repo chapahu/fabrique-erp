@@ -1,0 +1,64 @@
+### Requêtes de test de l'API.
+### Dans VS Code, avec l'extension "REST Client" : cliquer sur "Send Request" au-dessus de chaque requête.
+### (L'API doit tourner : npm run dev:api)
+
+@api = http://localhost:3000/api
+
+### Santé de l'API et de la base
+GET {{api}}/health
+
+### Emplacements, articles, recettes
+GET {{api}}/locations
+
+###
+GET {{api}}/items
+
+###
+GET {{api}}/recipes
+
+### Stock de Gennevilliers (alerte below_min = sous le seuil mini)
+GET {{api}}/stock?locationId=1
+
+### Détail lot par lot
+GET {{api}}/stock/lots?locationId=1
+
+### Réceptionner une livraison (change le numéro de lot à chaque essai)
+POST {{api}}/receptions
+Content-Type: application/json
+
+{
+  "itemId": 2,
+  "supplierId": 2,
+  "locationId": 1,
+  "lotNumber": "BEU-2026-0102",
+  "quantity": 60
+}
+
+### Planifier un ordre de fabrication
+POST {{api}}/production-orders
+Content-Type: application/json
+
+{
+  "recipeId": 1,
+  "locationId": 1,
+  "plannedQuantity": 500,
+  "plannedFor": "2026-11-09"
+}
+
+### Liste des OF
+GET {{api}}/production-orders
+
+### Un OF et ses besoins en matières
+GET {{api}}/production-orders/1
+
+### Démarrer un OF
+POST {{api}}/production-orders/2/start
+
+### Clôturer un OF (consomme les matières en FEFO, crée le lot de cookies)
+POST {{api}}/production-orders/2/complete
+Content-Type: application/json
+
+{ "producedQuantity": 495 }
+
+### Traçabilité d'un lot
+GET {{api}}/lots/2/trace

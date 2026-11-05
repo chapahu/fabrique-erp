@@ -12,7 +12,7 @@ et la stack d'un vrai ERP métier.
 | Lots et traçabilité amont/aval | ✅ schéma |
 | Stock multi-sites (grand livre des mouvements) | ✅ schéma |
 | Recettes (nomenclatures) et ordres de fabrication | ✅ schéma |
-| API REST | ⏳ |
+| API REST (stock, réceptions, OF avec consommation FEFO, traçabilité) | ✅ |
 | Interface web | ⏳ |
 | Simulateur d'activité (données vivantes) | ⏳ |
 | Authentification et rôles | ⏳ |
@@ -33,6 +33,15 @@ cp .env.example .env       # puis adapter le mot de passe
 docker compose up -d       # démarre PostgreSQL (schéma + données de démo au 1er lancement)
 ```
 
+Lancer l'API (http://localhost:3000/api) :
+
+```bash
+npm install
+npm run dev:api
+```
+
+Requêtes d'exemple : [apps/api/api.http](apps/api/api.http).
+
 Se connecter à la base pour explorer :
 
 ```bash
@@ -42,6 +51,7 @@ docker compose exec db psql -U erp -d fabrique_erp
 ## Structure
 
 ```
+apps/api/        API REST : Node.js + Express + Zod + PostgreSQL
 db/migrations/   Évolutions de la structure de la base, numérotées et immuables
 db/seed.sql      Données de démo (fictives)
 docker-compose.yml
