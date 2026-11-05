@@ -4,6 +4,7 @@ import {
   Boxes,
   CalendarClock,
   Cookie,
+  Database,
   Factory,
   LayoutDashboard,
   LogOut,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Navigate, NavLink, Route, Routes } from "react-router";
 import { ApiError, useLogout, useMe } from "./api";
+import { DataExplorerPage } from "./pages/DataExplorer";
 import { DirectionPage } from "./pages/Direction";
 import { ForecastPage } from "./pages/Forecast";
 import { LoginPage } from "./pages/Login";
@@ -46,6 +48,10 @@ const sections: { title: string; items: NavItem[] }[] = [
       { to: "/receptions", label: "Réceptions", icon: Truck, permission: "reception" },
       { to: "/tracabilite", label: "Traçabilité", icon: ScanSearch },
     ],
+  },
+  {
+    title: "Données",
+    items: [{ to: "/donnees", label: "Explorateur", icon: Database, permission: "data" }],
   },
 ];
 
@@ -141,6 +147,7 @@ export function App() {
             <Route path="/stock" element={<StockPage />} />
             <Route path="/receptions" element={<ReceptionsPage />} />
             <Route path="/tracabilite" element={<TracePage />} />
+            <Route path="/donnees" element={<DataExplorerPage />} />
           </Routes>
         </div>
       </main>

@@ -4,6 +4,7 @@ import { pool } from "./db";
 import { errorHandler } from "./errors";
 import { analyticsRouter } from "./routes/analytics";
 import { commerceRouter } from "./routes/commerce";
+import { dataRouter } from "./routes/data";
 import { productionRouter } from "./routes/production";
 import { referentielRouter } from "./routes/referentiel";
 import { stockRouter } from "./routes/stock";
@@ -30,6 +31,7 @@ app.use("/api", stockRouter);
 app.use("/api", productionRouter);
 app.use("/api", commerceRouter);
 app.use("/api", analyticsRouter);
+app.use("/api", dataRouter);
 
 // Route inconnue -> 404 en JSON
 app.use((_req, res) => {

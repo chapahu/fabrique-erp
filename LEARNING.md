@@ -393,3 +393,37 @@ l'algorithme un jour, les tests le signalent immédiatement. C'est ce qui permet
 ### Les mesures de performance
 Les calculs de prévision sont gardés **10 minutes en mémoire** (cache) : inutile de les refaire à chaque clic.
 Mais le stock et les OF, eux, sont toujours lus **en direct**, sinon le plan ne refléterait pas un OF qu'on vient de créer.
+
+---
+
+## L'explorateur de données
+
+### Ce que c'est
+Une page de l'ERP (menu **Données › Explorateur**) qui affiche **toutes les tables**, rangées par catégorie
+(Commerce, Production, Stock, Référentiel), avec : recherche, filtres adaptés à chaque catégorie, plage de dates,
+tri en cliquant sur une colonne, pages de 50 lignes et **export CSV** pour Excel.
+
+### Pourquoi des pages de 50 lignes ? (la pagination)
+Il y a plus de 50 000 ventes. Les envoyer d'un coup au navigateur le ferait ramer.
+Le serveur n'envoie donc que **la page demandée** (`LIMIT 50 OFFSET 100` = « 50 lignes à partir de la 101e »)
+et le **nombre total**, pour afficher « 101–150 sur 50 791 ». Filtrer, trier ou compter se fait **côté base**,
+qui est faite pour ça (0,06 seconde sur 50 000 lignes, grâce aux **index**).
+
+### La sécurité : une liste fermée
+La page n'envoie **jamais de SQL**, seulement des **noms** : « la catégorie *ventes*, le filtre *canal = b2b*, trié par *montant* ».
+Le serveur a une **liste blanche** ([data.ts](apps/api/src/routes/data.ts)) de catégories, colonnes et filtres autorisés :
+- un nom inconnu est **ignoré ou refusé** (testé : `sort=name;DROP TABLE items` ne fait rien) ;
+- les valeurs passent en **paramètres** `$1, $2` : pas d'injection SQL possible ;
+- la colonne des mots de passe **n'existe pas** dans la liste ;
+- la catégorie *Utilisateurs* est réservée à la direction, et les vendeurs n'ont pas accès à l'explorateur.
+
+### Petits détails de confort
+- La recherche part **300 ms après la dernière frappe** (le *debounce*), pas une requête par lettre tapée.
+- Pendant le chargement de la page suivante, l'ancienne reste affichée en grisé (pas de clignotement).
+- L'export CSV utilise le **point-virgule** et la **virgule décimale** pour qu'Excel en français l'ouvre correctement,
+  avec un marqueur UTF-8 pour garder les accents.
+
+### Bug rencontré
+« Poudre à lever 0 kg » au lieu de 0,4 kg : la fonction de formatage `to_char` arrondissait. Remplacée par
+`trim_scale`, qui retire seulement les zéros inutiles. Leçon : **toujours relire les valeurs affichées**, pas seulement
+vérifier que la page s'affiche.

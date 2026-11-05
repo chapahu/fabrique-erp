@@ -8,7 +8,7 @@ import {
   type ReceptionInput,
   type Role,
 } from "@fabrique/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // ---------- Types des données renvoyées par l'API ----------
 export type Me = { id: number; email: string; name: string; role: Role; location_id: number | null };
@@ -139,6 +139,21 @@ export type Planning = {
   materials: { id: number; name: string; unit: string; unit_cost: number; needed: number; stock: number; missing: number; purchaseCost: number }[];
 };
 
+// ---------- Explorateur de données ----------
+export type ColumnType = "text" | "number" | "money" | "percent" | "date" | "datetime" | "enum" | "bool";
+export type DatasetMeta = {
+  key: string;
+  label: string;
+  group: string;
+  description: string;
+  count: number;
+  columns: { key: string; label: string; type: ColumnType; labels?: Record<string, string> }[];
+  filters: { key: string; label: string; options: { value: string; label: string }[] }[];
+  date: string | null;
+  sort: { key: string; dir: "asc" | "desc" };
+};
+export type DataPage = { rows: Record<string, unknown>[]; total: number; page: number; pageSize: number };
+
 // ---------- Appel HTTP générique ----------
 export class ApiError extends Error {
   constructor(
@@ -263,6 +278,19 @@ export const useForecast = (p: ForecastParams) => {
 
 export const usePlanning = (days: number) =>
   useQuery({ queryKey: ["planning", days], queryFn: () => api<Planning>(`/planning/production?days=${days}`), refetchInterval: 30_000 });
+
+export const useDatasets = () =>
+  useQuery({ queryKey: ["datasets"], queryFn: () => api<DatasetMeta[]>("/data"), refetchInterval: 30_000 });
+
+/** Une page de résultats. `query` = la chaîne de filtres (q, f_xxx, from, to, sort, dir, page). */
+export const useDataPage = (key: string | undefined, query: string) =>
+  useQuery({
+    queryKey: ["data", key, query],
+    queryFn: () => api<DataPage>(`/data/${key}?${query}`),
+    enabled: Boolean(key),
+    placeholderData: keepPreviousData, // garde l'ancienne page affichée pendant le chargement (pas de clignotement)
+    refetchInterval: 15_000,
+  });
 
 export const useActivity = () =>
   useQuery({ queryKey: ["activity"], queryFn: () => api<Activity[]>("/activity?limit=12"), refetchInterval: 2000 });

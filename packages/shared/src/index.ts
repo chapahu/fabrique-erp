@@ -71,6 +71,7 @@ export const permissions = {
   sale: ["admin", "boutique"],
   pilotage: ["admin"], // chiffres financiers : direction uniquement
   planning: ["admin", "production", "achats"], // prévisions et plan de production
+  data: ["admin", "production", "achats"], // explorateur de données
 } as const satisfies Record<string, readonly Role[]>;
 export type Permission = keyof typeof permissions;
 
