@@ -1,5 +1,6 @@
 // Stock : consultation, réceptions fournisseurs, traçabilité des lots.
 import { Router } from "express";
+import { receptionInput } from "@fabrique/shared";
 import { z } from "zod";
 import { pool, withTransaction } from "../db";
 import { HttpError } from "../errors";
@@ -68,18 +69,10 @@ stockRouter.get("/stock/lots", async (req, res) => {
 // POST /api/receptions : un camion arrive, on réceptionne la marchandise.
 // => crée un LOT + un MOUVEMENT d'entrée, dans une seule transaction.
 // ---------------------------------------------------------------------------
-// Le schéma Zod décrit la forme exacte attendue. Tout le reste est refusé (400).
-const receptionBody = z.object({
-  itemId: z.number().int().positive(),
-  supplierId: z.number().int().positive(),
-  locationId: z.number().int().positive(),
-  lotNumber: z.string().trim().min(1).max(50),
-  quantity: z.number().positive(),
-  expiresOn: z.iso.date().optional(), // "2027-03-31" ; sinon calculée via la durée de vie
-});
-
+// Le schéma Zod (partagé avec l'interface, voir packages/shared) décrit la forme exacte attendue.
+// Tout le reste est refusé (400). Si expiresOn est absent, la DLC est calculée via la durée de vie.
 stockRouter.post("/receptions", async (req, res) => {
-  const body = receptionBody.parse(req.body);
+  const body = receptionInput.parse(req.body);
 
   const result = await withTransaction(async (db) => {
     const item = await db.query("SELECT type, shelf_life_days FROM items WHERE id = $1", [body.itemId]);
@@ -106,6 +99,27 @@ stockRouter.post("/receptions", async (req, res) => {
   });
 
   res.status(201).json(result); // 201 = "Created"
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/lots?search=BEU : retrouver un lot par son numéro (ou le nom de l'article)
+// ---------------------------------------------------------------------------
+const lotSearchQuery = z.object({ search: z.string().trim().max(50).default("") });
+
+stockRouter.get("/lots", async (req, res) => {
+  const { search } = lotSearchQuery.parse(req.query);
+  // ILIKE = recherche insensible à la casse ; % = "n'importe quels caractères"
+  const { rows } = await pool.query(
+    `SELECT l.id, l.lot_number, l.expires_on, i.name AS item, i.type,
+            COALESCE((SELECT SUM(quantity) FROM stock_movements WHERE lot_id = l.id), 0) AS quantity,
+            i.unit
+     FROM lots l JOIN items i ON i.id = l.item_id
+     WHERE l.lot_number ILIKE '%' || $1 || '%' OR i.name ILIKE '%' || $1 || '%'
+     ORDER BY l.created_at DESC
+     LIMIT 50`,
+    [search],
+  );
+  res.json(rows);
 });
 
 // ---------------------------------------------------------------------------

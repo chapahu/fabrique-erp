@@ -3,12 +3,14 @@
   "private": true,
   "description": "Mini ERP pour une biscuiterie (projet d'apprentissage)",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }

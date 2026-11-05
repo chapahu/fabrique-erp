@@ -1,4 +1,5 @@
 // Ordres de fabrication (OF) : planifier, lancer, terminer une production.
+import { completeProductionInput, productionOrderInput, productionStatuses } from "@fabrique/shared";
 import { Router } from "express";
 import { z } from "zod";
 import { pool, withTransaction } from "../db";
@@ -18,7 +19,7 @@ const ofSelect = `
 
 // GET /api/production-orders?status=planifie
 const listQuery = z.object({
-  status: z.enum(["planifie", "en_cours", "termine", "annule"]).optional(),
+  status: z.enum(productionStatuses).optional(),
 });
 
 productionRouter.get("/production-orders", async (req, res) => {
@@ -56,15 +57,8 @@ productionRouter.get("/production-orders/:id", async (req, res) => {
 });
 
 // POST /api/production-orders : planifier un OF
-const createBody = z.object({
-  recipeId: z.number().int().positive(),
-  locationId: z.number().int().positive(),
-  plannedQuantity: z.number().positive(),
-  plannedFor: z.iso.date(),
-});
-
 productionRouter.post("/production-orders", async (req, res) => {
-  const body = createBody.parse(req.body);
+  const body = productionOrderInput.parse(req.body);
   const loc = await pool.query("SELECT type FROM locations WHERE id = $1", [body.locationId]);
   if (loc.rowCount === 0) throw new HttpError(404, "Emplacement introuvable");
   if (loc.rows[0].type !== "production") {
@@ -107,14 +101,10 @@ productionRouter.post("/production-orders/:id/start", async (req, res) => {
 //  4. enregistrer l'entrée en stock et passer l'OF en "terminé".
 // Chaque consommation est liée à l'OF : c'est ce qui rend la traçabilité possible.
 // ---------------------------------------------------------------------------
-const completeBody = z.object({
-  // Quantité réellement produite (casse possible). Par défaut : la quantité planifiée.
-  producedQuantity: z.number().positive().optional(),
-});
-
+// producedQuantity = quantité réellement produite (casse possible). Par défaut : la quantité planifiée.
 productionRouter.post("/production-orders/:id/complete", async (req, res) => {
   const id = z.coerce.number().int().positive().parse(req.params.id);
-  const body = completeBody.parse(req.body ?? {});
+  const body = completeProductionInput.parse(req.body ?? {});
 
   const result = await withTransaction(async (db) => {
     // FOR UPDATE verrouille la ligne : deux personnes ne peuvent pas clôturer le même OF en même temps

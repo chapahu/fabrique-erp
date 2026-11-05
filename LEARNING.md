@@ -161,3 +161,55 @@ Leçon : une **date** (jour du calendrier) et un **instant** (horodatage) sont d
 [apps/api/api.http](apps/api/api.http) : des requêtes prêtes à envoyer depuis VS Code (extension REST Client).
 Scénario validé : données invalides → 400 · OF sans stock → 409 avec la liste des manquants ·
 réceptions → OF clôturé → stock à jour → traçabilité amont et aval du lot de beurre.
+
+---
+
+## Jour 1 (suite) — L'interface web
+
+### Front-end et back-end
+- **Back-end** (l'API) : tourne sur le serveur, détient les règles et la base.
+- **Front-end** (l'interface) : tourne dans le **navigateur** de l'utilisateur, affiche et envoie des requêtes à l'API.
+Ce sont deux programmes séparés qui communiquent en HTTP/JSON. On peut donc un jour ajouter une appli mobile
+ou une caisse qui utilisent la même API.
+
+### React : l'interface en composants
+L'écran est découpé en **composants** (des fonctions qui renvoient du HTML) : `Card`, `Badge`, `Table`, des pages...
+On les réutilise partout ([apps/web/src/ui.tsx](apps/web/src/ui.tsx)), donc l'ERP a un aspect cohérent et le code n'est pas répété.
+- **JSX** : du HTML écrit directement dans le TypeScript (`<Card title="Stock">...</Card>`).
+- **props** : les paramètres d'un composant (`title`).
+- **state** (`useState`) : une donnée qui appartient à l'écran (le site sélectionné, le contenu d'un formulaire).
+  Quand elle change, React redessine automatiquement ce qui en dépend.
+
+### Vite : l'outil de développement
+Il sert l'appli en local (http://localhost:5173), recharge instantanément à chaque modification,
+et fabrique la version optimisée pour la production (`npm run build`).
+Son **proxy** transmet les appels `/api` à l'API (port 3000) : pour le navigateur, c'est un seul site.
+
+### TanStack Query : les données du serveur
+C'est la brique la plus utile du front d'un ERP. Pour chaque donnée (`useStock`, `useProductionOrders`...), elle gère :
+- le **chargement** et les **erreurs** (`isPending`, `isError`) ;
+- le **cache** : deux pages qui affichent le stock partagent la même donnée (même `queryKey`) ;
+- le **rafraîchissement automatique** toutes les 5 s : quand l'atelier clôture un OF, le tableau de bord se met à jour
+  tout seul. C'est ce qui rendra les données « vivantes » avec le simulateur ;
+- l'**invalidation** après une écriture (`useMutation` + `invalidateQueries`) : après une réception, le stock est rechargé.
+Tous les appels sont regroupés dans [apps/web/src/api.ts](apps/web/src/api.ts) : les pages n'appellent jamais `fetch` elles-mêmes.
+
+### Tailwind CSS : le style par classes
+Au lieu d'écrire un fichier CSS à part, on compose des classes utilitaires directement dans le HTML :
+`rounded-xl border bg-white p-5 shadow-sm` = coins arrondis, bordure, fond blanc, marge intérieure, ombre.
+On avance vite, et le style reste cohérent (mêmes espacements et mêmes couleurs partout).
+
+### React Router : plusieurs pages, une seule appli
+`/`, `/stock`, `/production`, `/receptions`, `/tracabilite` : l'appli change de page sans recharger le navigateur.
+Le lot tracé est dans l'URL (`/tracabilite?lot=9`) : on peut **partager le lien** avec la qualité.
+
+### Paquet partagé : une seule source de vérité
+[packages/shared](packages/shared/src/index.ts) contient les schémas Zod utilisés **des deux côtés** :
+- dans le formulaire : message immédiat (« Recette requis ») sans attendre le serveur → confort ;
+- dans l'API : revérification systématique, car un client peut être contourné → **sécurité**.
+Une règle (ex. « quantité > 0 ») ne s'écrit qu'une fois, donc le front et le back ne peuvent pas diverger.
+
+### Ce que j'ai vérifié dans le navigateur
+Formulaire vide → erreurs par champ · OF planifié → besoins affichés face au stock disponible ·
+clôture → stocks mis à jour à l'écran · traçabilité amont du lot de cookies jusqu'aux 6 lots de matières.
+Défaut repéré et corrigé : après clôture, une matière devenue « insuffisante » s'affichait en rouge alors que l'OF était déjà terminé.

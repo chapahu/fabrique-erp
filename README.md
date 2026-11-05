@@ -13,7 +13,7 @@ et la stack d'un vrai ERP métier.
 | Stock multi-sites (grand livre des mouvements) | ✅ schéma |
 | Recettes (nomenclatures) et ordres de fabrication | ✅ schéma |
 | API REST (stock, réceptions, OF avec consommation FEFO, traçabilité) | ✅ |
-| Interface web | ⏳ |
+| Interface web (tableau de bord, stock, production, réceptions, traçabilité) | ✅ |
 | Simulateur d'activité (données vivantes) | ⏳ |
 | Authentification et rôles | ⏳ |
 | Achats, réceptions, facturation, portail B2B | 🔜 |
@@ -42,6 +42,12 @@ npm run dev:api
 
 Requêtes d'exemple : [apps/api/api.http](apps/api/api.http).
 
+Lancer l'interface (http://localhost:5173), dans un second terminal :
+
+```bash
+npm run dev:web
+```
+
 Se connecter à la base pour explorer :
 
 ```bash
@@ -52,6 +58,8 @@ docker compose exec db psql -U erp -d fabrique_erp
 
 ```
 apps/api/        API REST : Node.js + Express + Zod + PostgreSQL
+apps/web/        Interface : React + Vite + TanStack Query + Tailwind
+packages/shared/ Schémas Zod partagés entre l'API et l'interface
 db/migrations/   Évolutions de la structure de la base, numérotées et immuables
 db/seed.sql      Données de démo (fictives)
 docker-compose.yml
