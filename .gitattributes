@@ -1,0 +1,2 @@
+# Fins de ligne Unix (LF) partout : les fichiers sont lus par des conteneurs Linux (Docker)
+* text=auto eol=lf

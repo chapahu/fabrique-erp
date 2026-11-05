@@ -1,0 +1,16 @@
+# Dépendances (réinstallables avec npm install, ne jamais les versionner)
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Secrets : JAMAIS sur GitHub
+.env
+.env.*
+!.env.example
+
+# Divers
+*.log
+.DS_Store
+Thumbs.db
