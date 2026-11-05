@@ -329,3 +329,67 @@ Cause : après la connexion, on vidait **toute** la mémoire des données (`clea
 à laquelle l'écran était abonné. L'écran restait branché sur l'ancienne fiche, qui disait « pas connecté ».
 Correction : on vide tout **sauf** cette fiche, et on la met à jour. Leçon : on a trouvé le problème en regardant
 les **requêtes réseau** (le serveur disait OK) : le souci était donc côté interface, pas côté serveur.
+
+---
+
+## Phase 1 « Pilotage » : un ERP qui aide à décider
+
+### Ce qui a été ajouté
+- **Vue direction** : chiffre d'affaires, marge, volumes, part du B2B, valeur du stock, rendement de production,
+  chacun comparé à la période précédente ; graphiques jour par jour et mois par mois ; classement des boutiques ;
+  rentabilité par produit ; meilleurs clients professionnels.
+- **Prévisions** : ce qui va se vendre dans les 4 prochaines semaines ou les 12 prochains mois (algorithme Holt-Winters).
+- **Planification** : combien de fournées lancer et quelles matières acheter, avec un bouton pour créer l'OF directement.
+- **Nouveau design** : menu par familles (Pilotage / Opérations), icônes, couleurs cohérentes.
+
+### La reprise d'historique
+Un algorithme de prévision apprend du **passé**. Comme notre ERP est neuf, on a généré **3 ans de ventes fictives
+mais réalistes** (`npm run db:history`) : croissance de 9 % par an, samedi fort, pic à Noël, creux en août,
+nouvelles boutiques qui montent en puissance, lancement du cookie caramel en 2024.
+Dans une vraie entreprise, c'est la **reprise de données** : on importe l'historique de l'ancien logiciel.
+C'est exactement ce que devra faire La Fabrique Cookies en remplaçant son ERP actuel.
+
+### Holt-Winters, en simple
+L'algorithme découpe les ventes en **3 morceaux** et les met à jour chaque jour :
+1. **le niveau** : « en ce moment, on vend environ 4 000 produits par jour » ;
+2. **la tendance** : « et ça monte un peu » ;
+3. **la saisonnalité** : « le samedi, c'est ×1,18 ; en décembre, ×1,45 ».
+Prévoir = niveau + tendance, multiplié par l'effet de la saison. Il donne plus de poids aux données récentes.
+Trois curseurs (α, β, γ, entre 0 et 1) règlent la vitesse à laquelle il réagit aux nouveautés.
+**Ils sont trouvés automatiquement** : on essaie des centaines de combinaisons et on garde celle qui aurait
+le mieux prédit le passé. Code : [holt-winters.ts](apps/api/src/analytics/holt-winters.ts).
+
+### Peut-on s'y fier ? Le backtest
+On **cache** la dernière période à l'algorithme, on lui demande de la prévoir, puis on compare à la réalité.
+L'erreur moyenne (MAPE) est affichée : environ 4,5 % au jour le jour, environ 9 % au mois.
+La **fourchette** (zone claire) indique où la réalité tombera 8 fois sur 10 ; elle s'élargit avec le temps.
+
+### Nettoyage des données
+Les jours fériés (boutiques fermées, 0 vente) fausseraient l'apprentissage : on les remplace par la moyenne
+du même jour la semaine d'avant et d'après. En data, **préparer les données compte autant que l'algorithme**.
+
+### Le calcul des besoins (planification)
+Pour chaque produit :
+`à produire = ventes prévues + stock de sécurité − stock actuel − fournées déjà lancées`,
+arrondi à des **fournées entières**. Puis, à partir des recettes, on calcule les **matières nécessaires**
+et ce qui manque dans les ateliers, avec le budget d'achat. Dans l'industrie, ça s'appelle le **CBN / MRP**
+(calcul des besoins nets).
+
+### Le coût de revient
+Une **vue** SQL ([004_cost_view.sql](db/migrations/004_cost_view.sql)) calcule le coût matière de chaque produit
+à partir de sa recette et du prix des ingrédients. Si le beurre augmente, toutes les marges se recalculent seules.
+
+### Tests automatiques
+`npm test` lance des **tests** : on fabrique une série dont on connaît la réponse et on vérifie que
+l'algorithme la retrouve (erreur < 2 %, samedi > lundi, fourchette qui s'élargit). Si quelqu'un casse
+l'algorithme un jour, les tests le signalent immédiatement. C'est ce qui permet de « faire évoluer sans casser ».
+
+### Les graphiques : quelques règles de pro
+- **Une seule échelle** par graphique (jamais deux axes verticaux différents : ça trompe l'œil).
+- Des couleurs choisies dans une **palette testée pour les daltoniens**, toujours dans le même ordre.
+- La couleur ne porte **jamais l'information seule** : toujours une légende, une icône ou un texte.
+- Des traits fins, un quadrillage discret, une infobulle au survol.
+
+### Les mesures de performance
+Les calculs de prévision sont gardés **10 minutes en mémoire** (cache) : inutile de les refaire à chaque clic.
+Mais le stock et les OF, eux, sont toujours lus **en direct**, sinon le plan ne refléterait pas un OF qu'on vient de créer.

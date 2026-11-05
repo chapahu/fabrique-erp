@@ -7,6 +7,8 @@
     "start": "tsx --env-file=../../.env src/server.ts",
     "migrate": "tsx --env-file=../../.env src/scripts/migrate.ts",
     "seed": "tsx --env-file=../../.env src/scripts/seed.ts",
+    "history": "tsx --env-file=../../.env src/scripts/history.ts",
+    "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

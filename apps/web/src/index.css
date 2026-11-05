@@ -1,5 +1,47 @@
 @import "tailwindcss";
 
+/* =====================================================================
+   SYSTÈME DE DESIGN : toutes les couleurs et polices au même endroit.
+   Changer une valeur ici change toute l'application.
+   ===================================================================== */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Surfaces et encres (lisibles, contraste suffisant) */
+  --color-page: #f6f5f2;       /* fond de page */
+  --color-surface: #ffffff;    /* cartes */
+  --color-ink: #0b0b0b;        /* texte principal */
+  --color-ink-2: #52514e;      /* texte secondaire */
+  --color-muted: #898781;      /* légendes, axes */
+  --color-line: #e7e5df;       /* bordures fines */
+  --color-grid: #ecebe6;       /* quadrillage des graphiques */
+
+  /* Marque : un brun "cacao" et un accent caramel */
+  --color-cocoa: #2a1f1a;
+  --color-cocoa-2: #3a2c25;
+  --color-brand: #b45309;
+  --color-brand-dark: #92400e;
+  --color-brand-soft: #fdf3e7;
+
+  /* Couleurs des séries de graphiques : palette validée (daltonisme), toujours dans cet ordre */
+  --color-series-1: #2a78d6; /* bleu */
+  --color-series-2: #eb6834; /* orange */
+  --color-series-3: #1baf7a; /* turquoise */
+  --color-series-4: #eda100; /* jaune */
+
+  /* Couleurs d'état, réservées à ce rôle (toujours accompagnées d'une icône ou d'un libellé) */
+  --color-good: #0ca30c;
+  --color-good-text: #006300;
+  --color-critical: #d03b3b;
+  --color-warning: #fab219;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

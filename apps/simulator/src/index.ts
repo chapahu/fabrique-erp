@@ -84,7 +84,12 @@ const supplierFor: Record<string, string> = {
   SUCRE: "Cacao & Co",
   CHOCO: "Cacao & Co",
   NOIX: "Cacao & Co",
+  CARAMEL: "Cacao & Co",
+  CITRON: "Minoterie du Poitou",
+  MIEL: "Minoterie du Poitou",
+  LEVURE: "Minoterie du Poitou",
   SACHET: "Emballages Verts",
+  BOITE: "Emballages Verts",
 };
 
 let ref: { locations: Location[]; items: Item[]; suppliers: Supplier[]; recipes: Recipe[] };

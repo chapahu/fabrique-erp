@@ -42,6 +42,7 @@ export type StockLot = {
   quantity: number;
   item: string;
   unit: string;
+  location: string;
 };
 export type ProductionOrder = {
   id: number;
@@ -99,6 +100,43 @@ export type Activity = {
   lot_number: string;
   production_order: string | null;
   user_name: string | null;
+};
+
+// ---------- Pilotage ----------
+export type Overview = {
+  days: number;
+  kpis: {
+    revenue: number; revenuePrev: number; margin: number; marginPrev: number; units: number; unitsPrev: number;
+    b2bShare: number; stockValue: number; stockAlerts: number; productionOrders: number; productionYield: number | null;
+  };
+  daily: { day: string; boutique: number | null; b2b: number | null }[];
+  byShop: { id: number; name: string; city: string; is_franchise: boolean; revenue: number; prev_revenue: number }[];
+  byProduct: { id: number; name: string; category: string; sale_price: number; unit_cost: number; units: number; revenue: number; margin: number }[];
+  monthly: { month: string; revenue: number }[];
+  topCustomers: { name: string; segment: string; city: string; revenue: number }[];
+};
+
+export type ForecastParams = { granularity: "day" | "month"; metric: "units" | "revenue"; itemId?: number; locationId?: number };
+export type Forecast = {
+  error?: string;
+  granularity: "day" | "month";
+  metric: "units" | "revenue";
+  params: { alpha: number; beta: number; gamma: number };
+  mape: number | null;
+  seasonality: { label: string; order: number; factor: number }[];
+  history: { period: string; actual: number; fitted: number }[];
+  forecast: { period: string; value: number; lower: number; upper: number }[];
+  total: number;
+};
+
+export type Planning = {
+  days: number;
+  generatedAt: string;
+  plan: {
+    itemId: number; product: string; recipeId: number; demand: number; stock: number; inProgress: number;
+    safetyStock: number; need: number; batchSize: number; batches: number; suggested: number; coverageDays: number | null;
+  }[];
+  materials: { id: number; name: string; unit: string; unit_cost: number; needed: number; stock: number; missing: number; purchaseCost: number }[];
 };
 
 // ---------- Appel HTTP générique ----------
@@ -211,6 +249,20 @@ export const useProductionOrder = (id: number | null) =>
     queryFn: () => api<ProductionOrderDetail>(`/production-orders/${id}`),
     enabled: id !== null, // ne rien charger tant qu'aucun OF n'est sélectionné
   });
+
+// Pilotage : les calculs sont plus lourds, on rafraîchit moins souvent (1 minute)
+export const useOverview = (days: number) =>
+  useQuery({ queryKey: ["overview", days], queryFn: () => api<Overview>(`/analytics/overview?days=${days}`), refetchInterval: 60_000 });
+
+export const useForecast = (p: ForecastParams) => {
+  const qs = new URLSearchParams({ granularity: p.granularity, metric: p.metric });
+  if (p.itemId) qs.set("itemId", String(p.itemId));
+  if (p.locationId) qs.set("locationId", String(p.locationId));
+  return useQuery({ queryKey: ["forecast", p], queryFn: () => api<Forecast>(`/analytics/forecast?${qs}`), refetchInterval: false });
+};
+
+export const usePlanning = (days: number) =>
+  useQuery({ queryKey: ["planning", days], queryFn: () => api<Planning>(`/planning/production?days=${days}`), refetchInterval: 30_000 });
 
 export const useActivity = () =>
   useQuery({ queryKey: ["activity"], queryFn: () => api<Activity[]>("/activity?limit=12"), refetchInterval: 2000 });

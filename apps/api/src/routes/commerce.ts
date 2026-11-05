@@ -57,7 +57,14 @@ commerceRouter.post("/sales", requirePermission("sale"), async (req, res) => {
     if (loc.rows[0].type !== "boutique") throw new HttpError(409, "Les ventes se font uniquement en boutique");
 
     const taken = await takeFromStock(db, { ...body, type: "vente", userId: user.id });
-    return { lots: taken };
+    // On enregistre aussi la VENTE (avec son prix) : c'est elle qui alimente le chiffre d'affaires
+    const sale = await db.query(
+      `INSERT INTO sales (channel, location_id, item_id, quantity, unit_price, user_id)
+       SELECT 'boutique', $1, id, $3, COALESCE(sale_price, 0), $4 FROM items WHERE id = $2
+       RETURNING id, unit_price`,
+      [body.locationId, body.itemId, body.quantity, user.id],
+    );
+    return { lots: taken, sale: sale.rows[0] };
   });
 
   res.status(201).json(result);

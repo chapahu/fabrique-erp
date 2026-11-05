@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useLocations, useStock, useStockLots } from "../api";
-import { Badge, Card, fmtDate, fmtQty, inputClass, itemTypeLabels, Loading, PageTitle, Table, td } from "../ui";
+import { Badge, Card, fmtDate, fmtQty, selectClass, itemTypeLabels, Loading, PageTitle, Table, td } from "../ui";
 
 export function StockPage() {
   const locations = useLocations();
@@ -20,7 +20,7 @@ export function StockPage() {
         subtitle="Calculé en temps réel à partir des mouvements (réceptions, consommations, productions)"
         actions={
           <select
-            className={`${inputClass} w-64`}
+            className={`${selectClass} w-64`}
             value={locationId ?? ""}
             onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : undefined)}
           >
@@ -57,17 +57,19 @@ export function StockPage() {
 
         <Card title="Détail par lot (ordre FEFO : premier périmé, premier sorti)">
           {lots.isPending ? <Loading /> : (
-            <Table head={["Lot", "Article", "Quantité", "DLC / DDM", ""]}>
+            <Table head={["Lot", "Article", "Lieu", "Quantité", "DLC / DDM", ""]}>
               {lots.data?.map((l) => (
-                <tr key={`${l.lot_id}-${l.item}`}>
+                // Un même lot peut être à plusieurs endroits (transferts) : la ligne = lot + lieu
+                <tr key={`${l.lot_id}-${l.location}`}>
                   <td className={`${td} font-mono text-xs`}>{l.lot_number}</td>
                   <td className={td}>{l.item}</td>
+                  <td className={`${td} text-ink-2`}>{l.location}</td>
                   <td className={td}>{fmtQty(l.quantity, l.unit)}</td>
                   <td className={td}>
                     {fmtDate(l.expires_on)} {soon(l.expires_on) && <Badge color="amber">Bientôt</Badge>}
                   </td>
                   <td className={`${td} text-right`}>
-                    <Link to={`/tracabilite?lot=${l.lot_id}`} className="text-sm text-amber-800 hover:underline">
+                    <Link to={`/tracabilite?lot=${l.lot_id}`} className="text-sm text-brand hover:underline">
                       Tracer →
                     </Link>
                   </td>

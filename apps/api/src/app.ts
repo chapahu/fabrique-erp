@@ -2,6 +2,7 @@ import express from "express";
 import { authRouter, requireAuth } from "./auth";
 import { pool } from "./db";
 import { errorHandler } from "./errors";
+import { analyticsRouter } from "./routes/analytics";
 import { commerceRouter } from "./routes/commerce";
 import { productionRouter } from "./routes/production";
 import { referentielRouter } from "./routes/referentiel";
@@ -28,6 +29,7 @@ app.use("/api", referentielRouter);
 app.use("/api", stockRouter);
 app.use("/api", productionRouter);
 app.use("/api", commerceRouter);
+app.use("/api", analyticsRouter);
 
 // Route inconnue -> 404 en JSON
 app.use((_req, res) => {
